@@ -8,19 +8,18 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Connect to MongoDB (Replace with your connection string later)
-// NEW CODE (Cloud)
+// --- DATABASE CONNECTION ---
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://neelmpatel1340_db_user:i22lZQ8Qh0oAJpG0@cluster0.d76dkob.mongodb.net/?appName=Cluster0')
+.then(() => console.log('MongoDB Connected'))
+.catch(err => console.log(err));
 
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://neelmpatel1340_db_user:i22lZQ8Qh0oAJpG0@cluster0.d76dkob.mongodb.net/?appName=Cluster0') // <-- NO semicolon here!
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log(err));
+// --- ROUTES ---
 
-// 1. Get all Buses (Search Function)
+// 1. Get all Buses
 app.get('/api/buses', async (req, res) => {
   const { from, to } = req.query;
-  // Simple filter: if 'from' and 'to' are provided, filter by them
   const query = {};
-  if (from) query.source = new RegExp(from, 'i'); // Case insensitive
+  if (from) query.source = new RegExp(from, 'i');
   if (to) query.destination = new RegExp(to, 'i');
   
   const buses = await Bus.find(query);
@@ -36,7 +35,7 @@ app.post('/api/book/:id', async (req, res) => {
     return res.status(400).json({ message: "Seat already booked" });
   }
 
-  bus.seats[seatIndex] = true; // Mark seat as booked
+  bus.seats[seatIndex] = true;
   await bus.save();
   res.json({ message: "Booking Successful", bus });
 });
@@ -48,4 +47,11 @@ app.post('/api/add-bus', async (req, res) => {
   res.json(newBus);
 });
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+// --- OLD CODE (DELETE THIS) ---
+// app.listen(5000, () => console.log('Server running on port 5000'));
+
+// --- NEW CODE (PASTE THIS) ---
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
+
+module.exports = app; // <--- IMPORTANT: This lets Vercel run the server
