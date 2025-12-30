@@ -1,57 +1,90 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-const Bus = require('./models/Bus');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- DATABASE CONNECTION ---
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://neelmpatel1340_db_user:i22lZQ8Qh0oAJpG0@cluster0.d76dkob.mongodb.net/?appName=Cluster0')
-.then(() => console.log('MongoDB Connected'))
-.catch(err => console.log(err));
+// --- IN-MEMORY DATABASE (Free, No Sign-up) ---
+let buses = [
+  // Let's add one default bus so the site isn't empty
+  {
+    _id: "1",
+    name: "RedBus Starter",
+    source: "Surat",
+    destination: "Mumbai",
+    departureTime: "10:00 AM",
+    arrivalTime: "2:00 PM",
+    price: 500,
+    seats: new Array(40).fill(false)
+  }
+];
 
 // --- ROUTES ---
 
 // 1. Get all Buses
-app.get('/api/buses', async (req, res) => {
+app.get('/api/buses', (req, res) => {
   const { from, to } = req.query;
-  const query = {};
-  if (from) query.source = new RegExp(from, 'i');
-  if (to) query.destination = new RegExp(to, 'i');
-  
-  const buses = await Bus.find(query);
-  res.json(buses);
+  let filteredBuses = buses;
+
+  // Filter if user searches
+  if (from) {
+    filteredBuses = filteredBuses.filter(bus =>
+      bus.source.toLowerCase().includes(from.toLowerCase())
+    );
+  }
+  if (to) {
+    filteredBuses = filteredBuses.filter(bus =>
+      bus.destination.toLowerCase().includes(to.toLowerCase())
+    );
+  }
+
+  res.json(filteredBuses);
 });
 
 // 2. Book a Seat
-app.post('/api/book/:id', async (req, res) => {
+app.post('/api/book/:id', (req, res) => {
   const { seatIndex } = req.body;
-  const bus = await Bus.findById(req.params.id);
-  
+  const busId = req.params.id;
+
+  // Find the bus in our list
+  const bus = buses.find(b => b._id === busId);
+
+  if (!bus) {
+    return res.status(404).json({ message: "Bus not found" });
+  }
+
   if (bus.seats[seatIndex]) {
     return res.status(400).json({ message: "Seat already booked" });
   }
 
+  // Book the seat
   bus.seats[seatIndex] = true;
-  await bus.save();
+
   res.json({ message: "Booking Successful", bus });
 });
 
-// 3. Add a Fake Bus (For testing)
-app.post('/api/add-bus', async (req, res) => {
-  const newBus = new Bus(req.body);
-  await newBus.save();
+// 3. Add a Bus
+app.post('/api/add-bus', (req, res) => {
+  const newBus = {
+    _id: Date.now().toString(), // Generate a fake ID
+    name: req.body.name,
+    source: req.body.source,
+    destination: req.body.destination,
+    departureTime: req.body.departureTime,
+    arrivalTime: req.body.arrivalTime,
+    price: req.body.price,
+    seats: new Array(40).fill(false)
+  };
+
+  buses.push(newBus);
+  console.log("Bus Added:", newBus);
   res.json(newBus);
 });
 
-// --- OLD CODE (DELETE THIS) ---
-// app.listen(5000, () => console.log('Server running on port 5000'));
-
-// --- NEW CODE (PASTE THIS) ---
+// For Vercel Deployment
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
 
-module.exports = app; // <--- IMPORTANT: This lets Vercel run the server
+module.exports = app;
