@@ -88,3 +88,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
 
 module.exports = app;
+// Default Home Route
+app.get('/', (req, res) => {
+  res.send('Backend is Working! Go to /api/buses to see data.');
+});
