@@ -10,7 +10,8 @@ function App() {
 
   // --- IMPORTANT: PASTE YOUR BACKEND LINK HERE ---
   // Example: const API_URL = 'https://redbus-backend.vercel.app';
-  const API_URL = 'https://redbus-clone-iqzk-patel-neels-projects-29295fa5.vercel.app/';
+  // REPLACE THE OLD LINE WITH THIS:
+  const API_URL = 'https://redbus-clone-iqzk.vercel.app';
 
   // SEARCH FUNCTION
   const searchBuses = async () => {
