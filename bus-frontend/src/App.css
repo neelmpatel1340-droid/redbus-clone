@@ -1,0 +1,57 @@
+body {
+  background-color: #f4f6f8;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.search-card {
+  background: white;
+  border-radius: 15px;
+}
+
+.bus-card {
+  transition: transform 0.2s;
+  border-left: 5px solid #dc3545 !important; /* RedBus Red color */
+}
+
+.bus-card:hover {
+  transform: translateY(-3px);
+}
+
+/* Seat Grid Styling */
+.seat-section {
+  border-top: 2px dashed #ccc;
+}
+
+.seat-btn {
+  width: 45px;
+  height: 45px;
+  border: 1px solid #28a745;
+  background-color: white;
+  color: #28a745;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.seat-btn:hover:not(:disabled) {
+  background-color: #28a745;
+  color: white;
+}
+
+.seat-btn.booked {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: white;
+  cursor: not-allowed;
+}
+
+/* Simple Animation */
+.fade-in {
+  animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
