@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './App.css'; 
+import './App.css';
 
 function App() {
   const [buses, setBuses] = useState([]);
@@ -8,70 +8,73 @@ function App() {
   const [to, setTo] = useState('');
   const [selectedBus, setSelectedBus] = useState(null);
 
+  // --- IMPORTANT: PASTE YOUR BACKEND LINK HERE ---
+  // Example: const API_URL = 'https://redbus-backend.vercel.app';
+  const API_URL = 'https://redbus-clone-iqzk-patel-neels-projects-29295fa5.vercel.app/';
+
   // SEARCH FUNCTION
   const searchBuses = async () => {
     try {
-      // NOTE: Ensure your backend is running on port 5000
-      const res = await axios.get(`http://localhost:5000/api/buses?from=${from}&to=${to}`);
+      const res = await axios.get(`${API_URL}/api/buses?from=${from}&to=${to}`);
       setBuses(res.data);
       setSelectedBus(null);
     } catch (error) {
       console.error("Error fetching buses:", error);
-      alert("Backend not connected! Make sure server.js is running.");
+      alert("Error connecting to server. Check console for details.");
     }
   };
+
+  // LOAD BUSES ON START
+  useEffect(() => {
+    searchBuses();
+  }, []);
 
   // BOOKING FUNCTION
   const bookSeat = async (busId, index) => {
     try {
-      await axios.post(`http://localhost:5000/api/book/${busId}`, { seatIndex: index });
+      await axios.post(`${API_URL}/api/book/${busId}`, { seatIndex: index });
       alert('Booking Confirmed!');
       searchBuses(); // Refresh to show the seat as taken
     } catch (err) {
-      alert('Error booking seat: ' + (err.response?.data?.message || err.message));
+      alert('Error booking seat.');
     }
   };
 
   return (
     <div className="container mt-5">
-      {/* HEADER */}
       <div className="text-center mb-5">
         <h1 className="display-4 fw-bold text-danger">RedBus Clone</h1>
-        <p className="lead text-secondary">Book your bus tickets safely & quickly</p>
+        <p className="lead text-secondary">Live Project by [Your Name]</p>
       </div>
-      
+
       {/* SEARCH BAR */}
       <div className="card p-4 shadow-lg border-0 mb-5 search-card">
         <div className="row g-3">
           <div className="col-md-5">
-            <label className="form-label text-muted">From</label>
-            <input type="text" className="form-control form-control-lg" placeholder="Source (e.g., Surat)" 
+            <input type="text" className="form-control form-control-lg" placeholder="Source (e.g., Surat)"
               value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
           <div className="col-md-5">
-            <label className="form-label text-muted">To</label>
-            <input type="text" className="form-control form-control-lg" placeholder="Destination (e.g., Mumbai)" 
+            <input type="text" className="form-control form-control-lg" placeholder="Destination (e.g., Mumbai)"
               value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
-          <div className="col-md-2 d-flex align-items-end">
-            <button className="btn btn-danger btn-lg w-100 fw-bold" onClick={searchBuses}>Search</button>
+          <div className="col-md-2">
+            <button className="btn btn-danger btn-lg w-100" onClick={searchBuses}>Search</button>
           </div>
         </div>
       </div>
 
       {/* BUS LIST */}
       <div className="list-group">
-        {buses.length === 0 && <p className="text-center text-muted">No buses found. Try searching or adding buses to backend.</p>}
-        
         {buses.map(bus => (
           <div key={bus._id} className="list-group-item p-4 mb-4 shadow-sm border rounded bus-card">
-            <div className="d-flex w-100 justify-content-between align-items-center flex-wrap">
+            <div className="d-flex w-100 justify-content-between align-items-center">
               <div>
                 <h4 className="mb-1 fw-bold text-primary">{bus.name}</h4>
-                <p className="mb-1 text-muted fs-5">{bus.source} <span className="mx-2">➝</span> {bus.destination}</p>
-                <small className="text-secondary">Departs: {bus.departureTime} | Arrives: {bus.arrivalTime}</small>
+                <p className="mb-1 text-muted">{bus.source} ➝ {bus.destination}</p>
+                <small>Departs: {bus.departureTime} | Arrives: {bus.arrivalTime}</small>
               </div>
-              <div className="text-end mt-2 mt-md-0">
+              <div className="text-end">
                 <h3 className="text-success fw-bold">₹{bus.price}</h3>
                 <button className="btn btn-outline-primary mt-2" onClick={() => setSelectedBus(bus === selectedBus ? null : bus)}>
                   {selectedBus === bus ? 'Hide Seats' : 'View Seats'}
@@ -79,25 +82,21 @@ function App() {
               </div>
             </div>
 
-            {/* SEAT SELECTION UI */}
             {selectedBus && selectedBus._id === bus._id && (
-              <div className="mt-4 p-4 bg-light rounded seat-section fade-in">
-                <h5 className="mb-3">Select a Seat</h5>
-                <div className="d-flex flex-wrap gap-2 justify-content-center">
+              <div className="mt-4 p-4 bg-light rounded seat-section">
+                <h5>Select a Seat</h5>
+                <div className="d-flex flex-wrap gap-2">
                   {bus.seats.map((isBooked, index) => (
-                    <button 
+                    <button
                       key={index}
                       disabled={isBooked}
-                      className={`seat-btn ${isBooked ? 'booked' : 'available'}`}
+                      className={`btn ${isBooked ? 'btn-secondary' : 'btn-success'}`}
+                      style={{ width: '40px' }}
                       onClick={() => bookSeat(bus._id, index)}
                     >
                       {index + 1}
                     </button>
                   ))}
-                </div>
-                <div className="mt-3 text-center">
-                  <span className="badge bg-secondary me-2">Booked</span>
-                  <span className="badge border text-dark">Available</span>
                 </div>
               </div>
             )}
