@@ -1,36 +1,71 @@
-// Fixing Vercel Deployment
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('./models/User');
-const JWT_SECRET = "neels_secret_key_123"; // In real apps, hide this in .env
-// const express = require('express');
-const mongoose = require('mongoose'); // Import Mongoose
+const express = require('express'); // This was missing!
+const mongoose = require('mongoose');
 const cors = require('cors');
-const Bus = require('./models/Bus'); // Import Bus Model
+const bcrypt = require('bcryptjs'); // Security tool
+const jwt = require('jsonwebtoken'); // Login tool
+const Bus = require('./models/Bus');
+const User = require('./models/User');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+// --- CONSTANTS ---
+const JWT_SECRET = "neels_secret_key_123";
+
 // --- 1. CONNECT TO DATABASE ---
-// Replace this string with YOUR MongoDB Link from Step 2
-// REPLACE YOUR OLD LINE WITH THIS EXACT CODE:
+// This uses your verified credentials
 const MONGO_URI = "mongodb+srv://neelpatel22082912_db_user:neel123@cluster0.vqdsuby.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected!"))
   .catch(err => console.error("❌ DB Error:", err));
 
-// --- 2. ROUTES ---
+// --- 2. AUTHENTICATION ROUTES (LOGIN & SIGNUP) ---
+
+// REGISTER
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ name, email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: "User Created Successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Error registering user" });
+  }
+});
+
+// LOGIN
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user._id }, JWT_SECRET);
+    res.json({ token, username: user.name, message: "Login Successful" });
+  } catch (err) {
+    res.status(500).json({ error: "Error logging in" });
+  }
+});
+
+// --- 3. BUS ROUTES ---
 
 // GET ALL BUSES
 app.get('/api/buses', async (req, res) => {
   try {
     const { from, to, category } = req.query;
     let query = {};
-
-    if (from) query.source = new RegExp(from, 'i'); // Case-insensitive
+    if (from) query.source = new RegExp(from, 'i');
     if (to) query.destination = new RegExp(to, 'i');
     if (category && category !== 'All') query.category = category;
 
@@ -46,12 +81,11 @@ app.post('/api/book/:id', async (req, res) => {
   try {
     const { seatIndex } = req.body;
     const bus = await Bus.findById(req.params.id);
-
     if (!bus) return res.status(404).json({ message: "Bus not found" });
     if (bus.seats[seatIndex]) return res.status(400).json({ message: "Seat booked" });
 
-    bus.seats[seatIndex] = true; // Mark as booked
-    await bus.save(); // Save to Real DB
+    bus.seats[seatIndex] = true;
+    await bus.save();
 
     res.json({ message: "Booking Successful", bus });
   } catch (err) {
@@ -59,11 +93,10 @@ app.post('/api/book/:id', async (req, res) => {
   }
 });
 
-// RESET / SEED DATABASE (Run this once to load 100 buses!)
+// SEED DATABASE (Reset)
 app.get('/api/seed', async (req, res) => {
   try {
-    await Bus.deleteMany({}); // Clear old data
-
+    await Bus.deleteMany({});
     const cities = ["Surat", "Mumbai", "Ahmedabad", "Rajkot", "Delhi", "Pune", "Goa"];
     const names = ["RedBus Express", "Gujrat Travels", "Neel's Luxury"];
 
@@ -74,7 +107,6 @@ app.get('/api/seed', async (req, res) => {
       while (to === from) to = cities[Math.floor(Math.random() * cities.length)];
 
       const isAC = Math.random() > 0.5;
-
       newBuses.push({
         name: names[Math.floor(Math.random() * names.length)],
         source: from,
@@ -86,7 +118,6 @@ app.get('/api/seed', async (req, res) => {
         seats: new Array(isAC ? 40 : 50).fill(false)
       });
     }
-
     await Bus.insertMany(newBuses);
     res.json({ message: "Database Populated with 100 Buses!" });
   } catch (err) {
@@ -98,48 +129,3 @@ app.get('/', (req, res) => res.send('Backend with MongoDB is Live!'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
-// --- USER AUTHENTICATION ROUTES ---
-
-// 1. REGISTER (Sign Up)
-app.post('/api/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "User already exists" });
-
-    // Hash the password (Security)
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Save to DB
-    const newUser = new User({ name, email, password: hashedPassword });
-    await newUser.save();
-
-    res.status(201).json({ message: "User Created Successfully" });
-  } catch (err) {
-    res.status(500).json({ error: "Error registering user" });
-  }
-});
-
-// 2. LOGIN
-app.post('/api/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Find User
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
-
-    // Check Password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
-    // Create Token (The "Key" to prove they are logged in)
-    const token = jwt.sign({ id: user._id }, JWT_SECRET);
-
-    res.json({ token, username: user.name, message: "Login Successful" });
-  } catch (err) {
-    res.status(500).json({ error: "Error logging in" });
-  }
-});
