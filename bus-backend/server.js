@@ -84,7 +84,7 @@ app.get('/api/seed', async (req, res) => {
     await Bus.insertMany(newBuses);
     res.json({ message: "Database Populated with 100 Buses!" });
   } catch (err) {
-    res.status(500).json({ error: "Seeding Failed" });
+    res.status(500).json({ error: err.message });
   }
 });
 
