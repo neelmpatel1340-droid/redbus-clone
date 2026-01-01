@@ -3,8 +3,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); // Security tool
 const jwt = require('jsonwebtoken'); // Login tool
-const Bus = require('./models/Bus');
-const User = require('./models/User');
+// 👇 OLD CODE (Delete this)
+// const Bus = require('./models/Bus');
+// const User = require('./models/User');
+
+// 👇 NEW CODE (Paste this)
+const Bus = require('./models/BusModel');   // Matches BusModel.js
+const User = require('./models/UserModel'); // Matches UserModel.js
 require('dotenv').config();
 
 const app = express();
