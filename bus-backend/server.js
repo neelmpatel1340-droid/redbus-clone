@@ -1,69 +1,94 @@
 const express = require('express');
+const mongoose = require('mongoose'); // Import Mongoose
 const cors = require('cors');
+const Bus = require('./models/Bus'); // Import Bus Model
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- CONSTANTS ---
-const cities = ["Surat", "Mumbai", "Ahmedabad", "Rajkot", "Delhi", "Pune", "Vadodara", "Bangalore", "Goa", "Jaipur"];
-const busNames = ["RedBus Express", "Gujrat Travels", "Neel's Luxury", "City Connect", "SafeJourney", "Speedy Wheels"];
+// --- 1. CONNECT TO DATABASE ---
+// Replace this string with YOUR MongoDB Link from Step 2
+const MONGO_URI = process.env.MONGO_URI || "YOUR_COPIED_CONNECTION_STRING_HERE";
 
-// --- GENERATE 100 BUSES WITH AC/NON-AC ---
-let buses = [];
-for (let i = 1; i <= 100; i++) {
-  const from = cities[Math.floor(Math.random() * cities.length)];
-  let to = cities[Math.floor(Math.random() * cities.length)];
-  while (to === from) to = cities[Math.floor(Math.random() * cities.length)];
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected!"))
+  .catch(err => console.error("❌ DB Error:", err));
 
-  const isAC = Math.random() > 0.5; // 50% chance of being AC
+// --- 2. ROUTES ---
 
-  buses.push({
-    _id: i.toString(),
-    name: busNames[Math.floor(Math.random() * busNames.length)],
-    category: isAC ? "AC" : "Non-AC",
-    source: from,
-    destination: to,
-    departureTime: `${Math.floor(Math.random() * 12) + 1}:00 ${Math.random() > 0.5 ? 'AM' : 'PM'}`,
-    arrivalTime: `${Math.floor(Math.random() * 12) + 1}:00 ${Math.random() > 0.5 ? 'AM' : 'PM'}`,
-    price: isAC ? Math.floor(Math.random() * 500) + 800 : Math.floor(Math.random() * 300) + 300,
-    seats: new Array(isAC ? 40 : 50).fill(false) // AC has 40 seats, Non-AC has 50
-  });
-}
+// GET ALL BUSES
+app.get('/api/buses', async (req, res) => {
+  try {
+    const { from, to, category } = req.query;
+    let query = {};
 
-// --- ROUTES ---
+    if (from) query.source = new RegExp(from, 'i'); // Case-insensitive
+    if (to) query.destination = new RegExp(to, 'i');
+    if (category && category !== 'All') query.category = category;
 
-// 1. Get Buses with Filter
-app.get('/api/buses', (req, res) => {
-  const { from, to, category } = req.query;
-  let filteredBuses = buses;
-
-  if (from) filteredBuses = filteredBuses.filter(bus => bus.source.toLowerCase() === from.toLowerCase());
-  if (to) filteredBuses = filteredBuses.filter(bus => bus.destination.toLowerCase() === to.toLowerCase());
-
-  // New Filter: AC vs Non-AC
-  if (category && category !== 'All') {
-    filteredBuses = filteredBuses.filter(bus => bus.category === category);
+    const buses = await Bus.find(query);
+    res.json(buses);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch buses" });
   }
-
-  res.json(filteredBuses);
 });
 
-// 2. Book a Seat
-app.post('/api/book/:id', (req, res) => {
-  const { seatIndex } = req.body;
-  const bus = buses.find(b => b._id === req.params.id);
-  if (!bus || bus.seats[seatIndex]) return res.status(400).json({ message: "Error" });
+// BOOK A SEAT
+app.post('/api/book/:id', async (req, res) => {
+  try {
+    const { seatIndex } = req.body;
+    const bus = await Bus.findById(req.params.id);
 
-  bus.seats[seatIndex] = true;
-  res.json({ message: "Booked", bus });
+    if (!bus) return res.status(404).json({ message: "Bus not found" });
+    if (bus.seats[seatIndex]) return res.status(400).json({ message: "Seat booked" });
+
+    bus.seats[seatIndex] = true; // Mark as booked
+    await bus.save(); // Save to Real DB
+
+    res.json({ message: "Booking Successful", bus });
+  } catch (err) {
+    res.status(500).json({ error: "Booking Failed" });
+  }
 });
 
-// Home
-app.get('/', (req, res) => res.send('Backend Online!'));
+// RESET / SEED DATABASE (Run this once to load 100 buses!)
+app.post('/api/seed', async (req, res) => {
+  try {
+    await Bus.deleteMany({}); // Clear old data
+
+    const cities = ["Surat", "Mumbai", "Ahmedabad", "Rajkot", "Delhi", "Pune", "Goa"];
+    const names = ["RedBus Express", "Gujrat Travels", "Neel's Luxury"];
+
+    let newBuses = [];
+    for (let i = 0; i < 100; i++) {
+      const from = cities[Math.floor(Math.random() * cities.length)];
+      let to = cities[Math.floor(Math.random() * cities.length)];
+      while (to === from) to = cities[Math.floor(Math.random() * cities.length)];
+
+      const isAC = Math.random() > 0.5;
+
+      newBuses.push({
+        name: names[Math.floor(Math.random() * names.length)],
+        source: from,
+        destination: to,
+        departureTime: "10:00 AM",
+        arrivalTime: "6:00 PM",
+        price: isAC ? 800 : 400,
+        category: isAC ? "AC" : "Non-AC",
+        seats: new Array(isAC ? 40 : 50).fill(false)
+      });
+    }
+
+    await Bus.insertMany(newBuses);
+    res.json({ message: "Database Populated with 100 Buses!" });
+  } catch (err) {
+    res.status(500).json({ error: "Seeding Failed" });
+  }
+});
+
+app.get('/', (req, res) => res.send('Backend with MongoDB is Live!'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running`));
-
-module.exports = app;
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
