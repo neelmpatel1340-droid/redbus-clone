@@ -8,29 +8,33 @@ function App() {
   const [to, setTo] = useState('');
   const [category, setCategory] = useState('All');
   const [selectedBus, setSelectedBus] = useState(null);
-  const [ticket, setTicket] = useState(null); // Ticket State
+  const [ticket, setTicket] = useState(null);
 
   // --- 👇 PASTE YOUR BACKEND LINK HERE 👇 ---
   const API_URL = 'https://redbus-clone-iqzk.vercel.app';
 
-  // 1. Search Function
-  const searchBuses = async () => {
+  // 1. Search Function (Refreshes Data)
+  const fetchBuses = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/buses`, {
         params: { from, to, category }
       });
       setBuses(res.data);
-      setSelectedBus(null);
-      setTicket(null); // Reset ticket when searching
     } catch (error) {
       console.error("Search Error:", error);
-      alert("Could not fetch buses. Check Backend URL.");
     }
   };
 
-  useEffect(() => { searchBuses(); }, []);
+  // 2. Handle Search Button Click (Clears old ticket)
+  const handleSearch = () => {
+    setTicket(null); // Clear old ticket only when searching manually
+    setSelectedBus(null);
+    fetchBuses();
+  };
 
-  // 2. Book Function
+  useEffect(() => { fetchBuses(); }, []);
+
+  // 3. Book Function
   const bookSeat = async (bus, index) => {
     try {
       await axios.post(`${API_URL}/api/book/${bus._id}`, { seatIndex: index });
@@ -46,14 +50,13 @@ function App() {
         date: new Date().toLocaleDateString()
       });
 
-      // Refresh data to show grey seat
-      searchBuses();
+      // Refresh data (Update Grey Seats) WITHOUT closing the ticket
+      fetchBuses();
     } catch (err) {
       alert('Seat already booked or Server Error!');
     }
   };
 
-  // 3. Download Function
   const downloadTicket = () => {
     window.print();
   };
@@ -79,12 +82,12 @@ function App() {
             </select>
           </div>
           <div className="col-md-3">
-            <button className="btn btn-danger w-100" onClick={searchBuses}>Search Buses</button>
+            <button className="btn btn-danger w-100" onClick={handleSearch}>Search Buses</button>
           </div>
         </div>
       </div>
 
-      {/* 🎟️ TICKET POPUP (ONLY SHOWS AFTER BOOKING) */}
+      {/* 🎟️ TICKET POPUP */}
       {ticket && (
         <div className="alert alert-success text-center shadow">
           <h4 className="fw-bold">✅ Booking Confirmed!</h4>
@@ -97,7 +100,6 @@ function App() {
             <p><strong>Price:</strong> ₹{ticket.price}</p>
             <p><strong>Date:</strong> {ticket.date}</p>
 
-            {/* 👇 DOWNLOAD BUTTON IS HERE 👇 */}
             <button className="btn btn-primary w-100 mt-2" onClick={downloadTicket}>Download / Print Ticket</button>
             <button className="btn btn-secondary w-100 mt-2" onClick={() => setTicket(null)}>Close</button>
           </div>
