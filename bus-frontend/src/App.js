@@ -11,7 +11,7 @@ function App() {
   const [ticket, setTicket] = useState(null); // Ticket State
 
   // --- PASTE YOUR BACKEND LINK HERE ---
-  const API_URL = 'https://redbus-clone-nine.vercel.app'; // Update this if needed
+  const API_URL = 'https://redbus-clone-iqzk.vercel.app';
 
   const searchBuses = async () => {
     try {
