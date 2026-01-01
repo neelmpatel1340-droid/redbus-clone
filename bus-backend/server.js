@@ -11,7 +11,7 @@ app.use(cors());
 // --- 1. CONNECT TO DATABASE ---
 // Replace this string with YOUR MongoDB Link from Step 2
 // REPLACE YOUR OLD LINE WITH THIS EXACT CODE:
-const MONGO_URI = "mongodb+srv://neelpatel22082912_db_user:neelpatel22082912_db_user@cluster0.vqdsuby.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const MONGO_URI = "mongodb+srv://neelpatel22082912_db_user:neel123@cluster0.vqdsuby.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected!"))
