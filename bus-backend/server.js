@@ -1,4 +1,8 @@
-const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('./models/User');
+const JWT_SECRET = "neels_secret_key_123"; // In real apps, hide this in .env
+// const express = require('express');
 const mongoose = require('mongoose'); // Import Mongoose
 const cors = require('cors');
 const Bus = require('./models/Bus'); // Import Bus Model
@@ -93,3 +97,48 @@ app.get('/', (req, res) => res.send('Backend with MongoDB is Live!'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+// --- USER AUTHENTICATION ROUTES ---
+
+// 1. REGISTER (Sign Up)
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
+
+    // Hash the password (Security)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Save to DB
+    const newUser = new User({ name, email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: "User Created Successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Error registering user" });
+  }
+});
+
+// 2. LOGIN
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find User
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "User not found" });
+
+    // Check Password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+    // Create Token (The "Key" to prove they are logged in)
+    const token = jwt.sign({ id: user._id }, JWT_SECRET);
+
+    res.json({ token, username: user.name, message: "Login Successful" });
+  } catch (err) {
+    res.status(500).json({ error: "Error logging in" });
+  }
+});
