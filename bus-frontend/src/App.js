@@ -20,6 +20,7 @@ function App() {
         params: { from, to, category }
       });
       setBuses(res.data);
+      // ❌ NO setTicket(null) HERE!
     } catch (error) {
       console.error("Search Error:", error);
     }
@@ -63,7 +64,7 @@ function App() {
 
   return (
     <div className="container mt-5">
-      <h1 className="text-center text-danger fw-bold mb-4">Neel's Bus Booking</h1>
+      <h1 className="text-center text-danger fw-bold mb-4">Neel's Bus Booking v2</h1>
 
       {/* SEARCH BAR */}
       <div className="card p-4 shadow mb-4">
