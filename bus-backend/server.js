@@ -54,7 +54,7 @@ app.post('/api/book/:id', async (req, res) => {
 });
 
 // RESET / SEED DATABASE (Run this once to load 100 buses!)
-app.post('/api/seed', async (req, res) => {
+app.get('/api/seed', async (req, res) => {
   try {
     await Bus.deleteMany({}); // Clear old data
 
