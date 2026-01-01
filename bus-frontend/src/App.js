@@ -6,101 +6,132 @@ function App() {
   const [buses, setBuses] = useState([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [category, setCategory] = useState('All'); // New Filter State
   const [selectedBus, setSelectedBus] = useState(null);
+  const [ticket, setTicket] = useState(null); // Ticket State
 
-  // --- IMPORTANT: PASTE YOUR BACKEND LINK HERE ---
-  // Example: const API_URL = 'https://redbus-backend.vercel.app';
-  // REPLACE THE OLD LINE WITH THIS:
-  const API_URL = 'https://redbus-clone-iqzk.vercel.app';
+  // --- PASTE YOUR BACKEND LINK HERE ---
+  const API_URL = 'https://redbus-clone-nine.vercel.app'; // Update this if needed
 
-  // SEARCH FUNCTION
   const searchBuses = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/buses?from=${from}&to=${to}`);
+      const res = await axios.get(`${API_URL}/api/buses`, {
+        params: { from, to, category }
+      });
       setBuses(res.data);
       setSelectedBus(null);
+      setTicket(null);
     } catch (error) {
-      console.error("Error fetching buses:", error);
-      alert("Error connecting to server. Check console for details.");
+      alert("Server error");
     }
   };
 
-  // LOAD BUSES ON START
-  useEffect(() => {
-    searchBuses();
-  }, []);
+  useEffect(() => { searchBuses(); }, []);
 
-  // BOOKING FUNCTION
-  const bookSeat = async (busId, index) => {
+  const bookSeat = async (bus, index) => {
     try {
-      await axios.post(`${API_URL}/api/book/${busId}`, { seatIndex: index });
-      alert('Booking Confirmed!');
-      searchBuses(); // Refresh to show the seat as taken
+      await axios.post(`${API_URL}/api/book/${bus._id}`, { seatIndex: index });
+      // Generate Ticket
+      setTicket({
+        busName: bus.name,
+        from: bus.source,
+        to: bus.destination,
+        seat: index + 1,
+        price: bus.price,
+        time: bus.departureTime,
+        date: new Date().toLocaleDateString()
+      });
+      searchBuses(); // Refresh data
     } catch (err) {
-      alert('Error booking seat.');
+      alert('Seat already booked!');
     }
+  };
+
+  // Function to Print Ticket
+  const downloadTicket = () => {
+    window.print();
   };
 
   return (
     <div className="container mt-5">
-      <div className="text-center mb-5">
-        <h1 className="display-4 fw-bold text-danger">RedBus Clone</h1>
-        <p className="lead text-secondary">Live Project by [Your Name]</p>
-      </div>
+      <h1 className="text-center text-danger fw-bold mb-4">Neel's Bus Booking</h1>
 
-      {/* SEARCH BAR */}
-      <div className="card p-4 shadow-lg border-0 mb-5 search-card">
+      {/* SEARCH BAR & FILTER */}
+      <div className="card p-4 shadow mb-4">
         <div className="row g-3">
-          <div className="col-md-5">
-            <input type="text" className="form-control form-control-lg" placeholder="Source (e.g., Surat)"
-              value={from} onChange={(e) => setFrom(e.target.value)} />
+          <div className="col-md-3">
+            <input className="form-control" placeholder="From (e.g. Surat)" onChange={e => setFrom(e.target.value)} />
           </div>
-          <div className="col-md-5">
-            <input type="text" className="form-control form-control-lg" placeholder="Destination (e.g., Mumbai)"
-              value={to} onChange={(e) => setTo(e.target.value)} />
+          <div className="col-md-3">
+            <input className="form-control" placeholder="To (e.g. Mumbai)" onChange={e => setTo(e.target.value)} />
           </div>
-          <div className="col-md-2">
-            <button className="btn btn-danger btn-lg w-100" onClick={searchBuses}>Search</button>
+          <div className="col-md-3">
+            <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="All">All Types</option>
+              <option value="AC">AC Only</option>
+              <option value="Non-AC">Non-AC Only</option>
+            </select>
+          </div>
+          <div className="col-md-3">
+            <button className="btn btn-danger w-100" onClick={searchBuses}>Search Buses</button>
           </div>
         </div>
       </div>
 
-      {/* BUS LIST */}
-      <div className="list-group">
-        {buses.map(bus => (
-          <div key={bus._id} className="list-group-item p-4 mb-4 shadow-sm border rounded bus-card">
-            <div className="d-flex w-100 justify-content-between align-items-center">
-              <div>
-                <h4 className="mb-1 fw-bold text-primary">{bus.name}</h4>
-                <p className="mb-1 text-muted">{bus.source} ➝ {bus.destination}</p>
-                <small>Departs: {bus.departureTime} | Arrives: {bus.arrivalTime}</small>
-              </div>
-              <div className="text-end">
-                <h3 className="text-success fw-bold">₹{bus.price}</h3>
-                <button className="btn btn-outline-primary mt-2" onClick={() => setSelectedBus(bus === selectedBus ? null : bus)}>
-                  {selectedBus === bus ? 'Hide Seats' : 'View Seats'}
-                </button>
-              </div>
-            </div>
+      {/* TICKET POPUP */}
+      {ticket && (
+        <div className="alert alert-success text-center shadow">
+          <h4>✅ Booking Confirmed!</h4>
+          <div className="card p-3 mt-3 d-inline-block text-start bg-light border-success">
+            <h5>🎫 TICKET ID: #{Math.floor(Math.random() * 10000)}</h5>
+            <hr />
+            <p><strong>Bus:</strong> {ticket.busName}</p>
+            <p><strong>Route:</strong> {ticket.from} ➝ {ticket.to}</p>
+            <p><strong>Seat No:</strong> {ticket.seat}</p>
+            <p><strong>Price:</strong> ₹{ticket.price}</p>
+            <p><strong>Date:</strong> {ticket.date}</p>
+            <button className="btn btn-primary w-100 mt-2" onClick={downloadTicket}>Download / Print Ticket</button>
+            <button className="btn btn-link w-100 mt-1" onClick={() => setTicket(null)}>Close</button>
+          </div>
+        </div>
+      )}
 
-            {selectedBus && selectedBus._id === bus._id && (
-              <div className="mt-4 p-4 bg-light rounded seat-section">
-                <h5>Select a Seat</h5>
-                <div className="d-flex flex-wrap gap-2">
-                  {bus.seats.map((isBooked, index) => (
-                    <button
-                      key={index}
-                      disabled={isBooked}
-                      className={`btn ${isBooked ? 'btn-secondary' : 'btn-success'}`}
-                      style={{ width: '40px' }}
-                      onClick={() => bookSeat(bus._id, index)}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
+      {/* BUS LIST */}
+      <div className="row">
+        {buses.map(bus => (
+          <div key={bus._id} className="col-12 mb-3">
+            <div className="card shadow-sm">
+              <div className="card-body d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 className="card-title text-primary">{bus.name} <span className="badge bg-secondary">{bus.category}</span></h5>
+                  <p className="mb-0">{bus.source} ➝ {bus.destination}</p>
+                  <small className="text-muted">{bus.departureTime} - {bus.arrivalTime}</small>
+                </div>
+                <div className="text-end">
+                  <h4 className="text-success">₹{bus.price}</h4>
+                  <button className="btn btn-outline-danger" onClick={() => setSelectedBus(bus === selectedBus ? null : bus)}>
+                    {selectedBus === bus ? 'Close' : 'Select Seat'}
+                  </button>
                 </div>
               </div>
-            )}
+
+              {/* SEAT LAYOUT */}
+              {selectedBus === bus && (
+                <div className="card-footer bg-white">
+                  <p className="text-center text-muted small">Front of Bus</p>
+                  <div className="d-flex flex-wrap gap-2 justify-content-center">
+                    {bus.seats.map((booked, i) => (
+                      <button key={i} disabled={booked}
+                        className={`btn btn-sm ${booked ? 'btn-secondary' : 'btn-outline-success'}`}
+                        style={{ width: '35px' }}
+                        onClick={() => bookSeat(bus, i)}>
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>
