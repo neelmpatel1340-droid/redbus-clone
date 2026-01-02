@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import 'bootstrap/dist/css/bootstrap.min.css'; // Ensure Bootstrap is imported
 import './App.css';
 
 function App() {
   // --- STATE VARIABLES ---
-  const [user, setUser] = useState(null); // Stores logged-in user
-  const [isLoginView, setIsLoginView] = useState(true); // Toggle Login vs Register
+  const [user, setUser] = useState(null);
+  const [isLoginView, setIsLoginView] = useState(true);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,33 +19,28 @@ function App() {
   const [selectedBus, setSelectedBus] = useState(null);
   const [ticket, setTicket] = useState(null);
 
-  // --- 👇 PASTE YOUR BACKEND LINK HERE 👇 ---
+  // Payment State
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState(null); // Stores seat info while paying
+
+  // --- 👇 YOUR BACKEND LINK 👇 ---
   const API_URL = 'https://redbus-clone-iqzk.vercel.app';
 
   // --- AUTH FUNCTIONS ---
   const handleAuth = async () => {
     const endpoint = isLoginView ? '/api/login' : '/api/register';
     const payload = isLoginView ? { email, password } : { name: username, email, password };
-
     try {
       const res = await axios.post(`${API_URL}${endpoint}`, payload);
-      if (isLoginView) {
-        setUser(res.data.username); // Log user in
-      } else {
-        alert("Registration Successful! Now please Login.");
-        setIsLoginView(true); // Switch to login
-      }
-    } catch (err) {
-      alert(err.response?.data?.message || "Error Occurred");
-    }
+      if (isLoginView) setUser(res.data.username);
+      else { alert("Registration Successful! Now please Login."); setIsLoginView(true); }
+    } catch (err) { alert(err.response?.data?.message || "Error Occurred"); }
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setTicket(null);
-  };
+  const handleLogout = () => { setUser(null); setTicket(null); };
 
-  // --- BUS APP FUNCTIONS ---
+  // --- BUS FUNCTIONS ---
   const fetchBuses = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/buses`, { params: { from, to, category } });
@@ -52,58 +48,69 @@ function App() {
     } catch (error) { console.error("Search Error:", error); }
   };
 
-  const handleSearch = () => {
-    setTicket(null);
-    setSelectedBus(null);
-    fetchBuses();
-  };
-
+  const handleSearch = () => { setTicket(null); setSelectedBus(null); fetchBuses(); };
   useEffect(() => { fetchBuses(); }, []);
 
-  const bookSeat = async (bus, index) => {
-    try {
-      await axios.post(`${API_URL}/api/book/${bus._id}`, { seatIndex: index });
-      setTicket({
-        busName: bus.name,
-        from: bus.source,
-        to: bus.destination,
-        seat: index + 1,
-        price: bus.price,
-        time: bus.departureTime,
-        date: new Date().toLocaleDateString(),
-        passenger: user // Add passenger name to ticket
-      });
-      fetchBuses();
-    } catch (err) { alert('Seat already booked!'); }
+  // --- 1. USER CLICKS SEAT -> OPENS PAYMENT POPUP ---
+  const initiateBooking = (bus, index) => {
+    setBookingDetails({ bus, index }); // Save details
+    setShowPayment(true); // Open Payment Modal
   };
 
-  // --- 🔒 IF NOT LOGGED IN: SHOW LOGIN SCREEN ---
+  // --- 2. USER CLICKS "PAY NOW" -> PROCESS FAKE PAYMENT ---
+  const processPayment = async () => {
+    setPaymentProcessing(true);
+
+    // Fake wait for 2 seconds (Simulating Bank Server)
+    setTimeout(async () => {
+      try {
+        const { bus, index } = bookingDetails;
+
+        // Call Backend to Book
+        await axios.post(`${API_URL}/api/book/${bus._id}`, { seatIndex: index });
+
+        // Generate Ticket
+        setTicket({
+          busName: bus.name,
+          from: bus.source,
+          to: bus.destination,
+          seat: index + 1,
+          price: bus.price,
+          passenger: user,
+          date: new Date().toLocaleDateString()
+        });
+
+        fetchBuses(); // Refresh Data
+        setPaymentProcessing(false);
+        setShowPayment(false); // Close Modal
+      } catch (err) {
+        alert('Booking Failed! Seat might be taken.');
+        setPaymentProcessing(false);
+        setShowPayment(false);
+      }
+    }, 2000);
+  };
+
+  // --- LOGIN SCREEN ---
   if (!user) {
     return (
-      <div className="container mt-5" style={{ maxWidth: '400px' }}>
-        <div className="card shadow p-4 text-center">
+      <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
+        <div className="card shadow p-4 text-center" style={{ width: '350px' }}>
           <h2 className="text-danger fw-bold">Neel's Bus App</h2>
           <h4 className="mb-3">{isLoginView ? "Login" : "Register"}</h4>
-
-          {!isLoginView && (
-            <input className="form-control mb-2" placeholder="Full Name" onChange={e => setUsername(e.target.value)} />
-          )}
+          {!isLoginView && <input className="form-control mb-2" placeholder="Full Name" onChange={e => setUsername(e.target.value)} />}
           <input className="form-control mb-2" placeholder="Email" onChange={e => setEmail(e.target.value)} />
           <input className="form-control mb-3" type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-
-          <button className="btn btn-danger w-100 mb-2" onClick={handleAuth}>
-            {isLoginView ? "Login" : "Register"}
-          </button>
-
+          <button className="btn btn-danger w-100 mb-2" onClick={handleAuth}>{isLoginView ? "Login" : "Register"}</button>
           <p className="text-muted" style={{ cursor: 'pointer' }} onClick={() => setIsLoginView(!isLoginView)}>
-            {isLoginView ? "New user? Register here" : "Already have account? Login"}
+            {isLoginView ? "New user? Register" : "Already have account? Login"}
           </p>
         </div>
       </div>
     );
   }
 
-  // --- 🔓 IF LOGGED IN: SHOW MAIN APP ---
+  // --- MAIN APP SCREEN ---
   return (
     <div className="container mt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -111,41 +118,66 @@ function App() {
         <button className="btn btn-outline-dark" onClick={handleLogout}>Logout</button>
       </div>
 
-      {/* SEARCH BAR */}
+      {/* SEARCH */}
       <div className="card p-4 shadow mb-4">
         <div className="row g-3">
+          <div className="col-md-3"><input className="form-control" placeholder="From" onChange={e => setFrom(e.target.value)} /></div>
+          <div className="col-md-3"><input className="form-control" placeholder="To" onChange={e => setTo(e.target.value)} /></div>
           <div className="col-md-3">
-            <input className="form-control" placeholder="From (e.g. Surat)" onChange={e => setFrom(e.target.value)} />
-          </div>
-          <div className="col-md-3">
-            <input className="form-control" placeholder="To (e.g. Mumbai)" onChange={e => setTo(e.target.value)} />
-          </div>
-          <div className="col-md-3">
-            <select className="form-select" value={category} onChange={e => setCategory(e.target.value)}>
+            <select className="form-select" onChange={e => setCategory(e.target.value)}>
               <option value="All">All Types</option>
               <option value="AC">AC Only</option>
               <option value="Non-AC">Non-AC Only</option>
             </select>
           </div>
-          <div className="col-md-3">
-            <button className="btn btn-danger w-100" onClick={handleSearch}>Search Buses</button>
-          </div>
+          <div className="col-md-3"><button className="btn btn-danger w-100" onClick={handleSearch}>Search</button></div>
         </div>
       </div>
 
-      {/* TICKET POPUP */}
+      {/* PAYMENT MODAL (FAKE GATEWAY) */}
+      {showPayment && bookingDetails && (
+        <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">💳 Secure Payment Gateway</h5>
+                <button className="btn-close" onClick={() => setShowPayment(false)}></button>
+              </div>
+              <div className="modal-body">
+                <p><strong>Paying for:</strong> {bookingDetails.bus.name}</p>
+                <p><strong>Amount:</strong> ₹{bookingDetails.bus.price}</p>
+                <hr />
+                <div className="mb-3">
+                  <label>Card Number</label>
+                  <input className="form-control" placeholder="XXXX-XXXX-XXXX-XXXX" />
+                </div>
+                <div className="row">
+                  <div className="col-6"><input className="form-control" placeholder="MM/YY" /></div>
+                  <div className="col-6"><input className="form-control" placeholder="CVV" /></div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                {paymentProcessing ? (
+                  <button className="btn btn-primary w-100" disabled>Processing Payment...</button>
+                ) : (
+                  <button className="btn btn-success w-100" onClick={processPayment}>Pay ₹{bookingDetails.bus.price}</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TICKET */}
       {ticket && (
         <div className="alert alert-success text-center shadow">
-          <h4>✅ Booking Confirmed!</h4>
-          <div className="card p-4 mt-3 d-inline-block text-start bg-white border-success shadow-sm">
-            <h5 className="text-center text-success">🎫 TICKET</h5>
-            <hr />
+          <h4>✅ Payment Successful!</h4>
+          <div className="card p-4 mt-3 d-inline-block text-start shadow-sm border-success">
+            <h5 className="text-center text-success">🎫 TICKET</h5> <hr />
             <p><strong>Passenger:</strong> {ticket.passenger}</p>
             <p><strong>Bus:</strong> {ticket.busName}</p>
-            <p><strong>Route:</strong> {ticket.from} ➝ {ticket.to}</p>
-            <p><strong>Seat:</strong> {ticket.seat}</p>
-            <p><strong>Price:</strong> ₹{ticket.price}</p>
-            <button className="btn btn-primary w-100 mt-2" onClick={() => window.print()}>Download</button>
+            <p><strong>Seat:</strong> {ticket.seat} | <strong>Price:</strong> ₹{ticket.price}</p>
+            <button className="btn btn-primary w-100" onClick={() => window.print()}>Print Ticket</button>
             <button className="btn btn-secondary w-100 mt-2" onClick={() => setTicket(null)}>Close</button>
           </div>
         </div>
@@ -158,22 +190,26 @@ function App() {
             <div className="card shadow-sm">
               <div className="card-body d-flex justify-content-between align-items-center">
                 <div>
-                  <h5 className="card-title text-primary">{bus.name} <span className="badge bg-secondary">{bus.category}</span></h5>
-                  <p className="mb-0 fw-bold">{bus.source} ➝ {bus.destination}</p>
-                  <small className="text-muted">{bus.departureTime} - {bus.arrivalTime}</small>
+                  <h5 className="card-title text-primary">{bus.name}</h5>
+                  <p className="mb-0">{bus.source} ➝ {bus.destination}</p>
                 </div>
                 <div className="text-end">
                   <h4 className="text-success">₹{bus.price}</h4>
-                  <button className="btn btn-outline-danger" onClick={() => setSelectedBus(bus === selectedBus ? null : bus)}>
-                    {selectedBus === bus ? 'Close Seats' : 'View Seats'}
-                  </button>
+                  <button className="btn btn-outline-danger" onClick={() => setSelectedBus(bus === selectedBus ? null : bus)}>Select Seat</button>
                 </div>
               </div>
               {selectedBus === bus && (
-                <div className="card-footer bg-light">
+                <div className="card-footer bg-light text-center">
+                  <p className="small text-muted">Select a seat to proceed to payment</p>
                   <div className="d-flex flex-wrap gap-2 justify-content-center">
                     {bus.seats.map((booked, i) => (
-                      <button key={i} disabled={booked} className={`btn btn-sm ${booked ? 'btn-secondary' : 'btn-outline-success'}`} style={{ width: '40px' }} onClick={() => bookSeat(bus, i)}>{i + 1}</button>
+                      <button key={i} disabled={booked}
+                        className={`btn btn-sm ${booked ? 'btn-secondary' : 'btn-outline-success'}`}
+                        style={{ width: '40px' }}
+                        onClick={() => initiateBooking(bus, i)}
+                      >
+                        {i + 1}
+                      </button>
                     ))}
                   </div>
                 </div>
